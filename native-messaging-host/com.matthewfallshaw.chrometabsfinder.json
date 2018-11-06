@@ -1,0 +1,9 @@
+{
+  "name": "com.matthewfallshaw.chrometabsfinder",
+  "description": "Chrome Tabs Finder Messaging Host",
+  "path": "/Users/matt/code/chrome-tabs-finder/native-messaging-host/host.py",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://hilkdhicnmdbpohfomppjgjaigfpkbil/"
+  ]
+}

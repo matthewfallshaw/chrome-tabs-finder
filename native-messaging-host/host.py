@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file [included below -- M@]
 #
-# Modified by Matt Fallshaw, 2018-11-06
+# Modified by Matthew Fallshaw, 2018-11-06
 
 # A simple native messaging host.
 

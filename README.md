@@ -2,8 +2,8 @@
 
 Control Chrome from the command line.
 Send commands by echoing to `tmp/chrometabsfinder.pipe`:
-``` sh
-echo -n '{"search":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder.pipe
+``` bash
+echo -n '{"focus":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder.pipe
 ```
 
 ## Installation
@@ -26,8 +26,11 @@ echo -n '{"search":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder
     ```
 4. From Google Chrome again (from the tab we left open earlier):
     1. Click the loopy reload button in the bottom right corner of this extension
-5. From your shell:
-    ``` sh
-    echo -n '{"search":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder.pipe
-    ```
-    If you have a tab open to Gmail, it should now have focus.
+
+## Use
+
+From your shell:
+``` bash
+echo -n '{"focus":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder.pipe
+```
+If you have a tab open to Gmail, it should now have focus.

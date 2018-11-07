@@ -11,13 +11,16 @@ import struct
 import sys
 import threading
 import Queue
-import os, time, json
+import os, time, json, logging
 
-PIPE_PATH = "/tmp/chrometabsfinder.pipe"
+PIPE_PATH = '/tmp/chrometabsfinder.pipe'
+LOG_PATH = '/tmp/chrometabsfinder.log'
+
+logging.basicConfig(filename='/tmp/chrometabsfinder.log', level=logging.DEBUG)
 
 # Helper function that sends a message to the webapp.
 def send_message(message):
-   # Write message size.
+  # Write message size.
   sys.stdout.write(struct.pack('I', len(message)))
   # Write the message itself.
   sys.stdout.write(message)
@@ -26,13 +29,13 @@ def send_message(message):
 # Thread that reads messages from the webapp.
 def read_thread_func(queue):
   message_number = 0
-  while 1:
+  while True:
     # Read the message length (first 4 bytes).
     text_length_bytes = sys.stdin.read(4)
 
     if len(text_length_bytes) == 0:
-      if queue:
-        queue.put(None)
+      logging.warning('Read 0 bytes from stdin; exiting read thread?!')
+      queue.put(None)
       sys.exit(0)
 
     # Unpack message length as 4 byte integer.
@@ -40,12 +43,9 @@ def read_thread_func(queue):
 
     # Read the text (JSON object) of the message.
     text = sys.stdin.read(text_length).decode('utf-8')
+    logging.debug("Read message: %s" % text)
 
-    if queue:
-      queue.put(text)
-    else:
-      # In headless mode just send an echo message back.
-      send_message('{"echo": %s}' % text)
+    queue.put(text)
 
 def Main():
   queue = Queue.Queue()
@@ -63,9 +63,14 @@ def Main():
     while True:
       message = pipe.read()
       if message:
-        send_message(json.dumps({"msg": json.loads(message)}))
+        logging.debug("Sending message: %s" % message)
+        try:
+          send_message(json.dumps({"msg": json.loads(message)}))
+        except:
+          send_message(json.dumps({"bad_msg": message}))
       time.sleep(0.5)
 
+  logging.warning('Exited the FIFO loop that should not exit; exiting the daemon now?!')
   sys.exit(0)
 
 if __name__ == '__main__':

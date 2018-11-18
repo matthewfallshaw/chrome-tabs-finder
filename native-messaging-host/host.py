@@ -7,77 +7,87 @@
 
 # A simple native messaging host.
 
+import json
+import logging
+import os
+import Queue
 import struct
 import sys
 import threading
-import Queue
-import os, time, json, logging
+import time
 
 PIPE_PATH = '/tmp/chrometabsfinder.pipe'
 LOG_PATH = '/tmp/chrometabsfinder.log'
 
-logging.basicConfig(filename='/tmp/chrometabsfinder.log', level=logging.DEBUG)
+logging.basicConfig(filename=LOG_PATH, level=logging.DEBUG)
+
 
 # Helper function that sends a message to the webapp.
 def send_message(message):
-  # Write message size.
-  sys.stdout.write(struct.pack('I', len(message)))
-  # Write the message itself.
-  sys.stdout.write(message)
-  sys.stdout.flush()
+    # Write message size.
+    sys.stdout.write(struct.pack('I', len(message)))
+    # Write the message itself.
+    sys.stdout.write(message)
+    sys.stdout.flush()
+
 
 # Thread that reads messages from the webapp.
 def read_thread_func(queue):
-  message_number = 0
-  while True:
-    # Read the message length (first 4 bytes).
-    text_length_bytes = sys.stdin.read(4)
+    while True:
+        # Read the message length (first 4 bytes).
+        text_length_bytes = sys.stdin.read(4)
 
-    if len(text_length_bytes) == 0:
-      logging.warning('Read 0 bytes from stdin; exiting read thread?!')
-      queue.put(None)
-      sys.exit(0)
+        if len(text_length_bytes) == 0:
+            logging.warning('Read 0 bytes from stdin; connection is closed, '
+                            'so exiting.')
+            queue.put(None)
+            sys.exit(0)
 
-    # Unpack message length as 4 byte integer.
-    text_length = struct.unpack('i', text_length_bytes)[0]
+        # Unpack message length as 4 byte integer.
+        text_length = struct.unpack('i', text_length_bytes)[0]
 
-    # Read the text (JSON object) of the message.
-    text = sys.stdin.read(text_length).decode('utf-8')
-    logging.debug("Read message: %s" % text)
+        # Read the text (JSON object) of the message.
+        text = sys.stdin.read(text_length).decode('utf-8')
+        logging.debug("Read message: %s" % text)
 
-    queue.put(text)
+        queue.put(text)
+
 
 def Main():
-  queue = Queue.Queue()
+    queue = Queue.Queue()
 
-  thread = threading.Thread(target=read_thread_func, args=(queue,))
-  thread.daemon = True
-  thread.start()
+    thread = threading.Thread(target=read_thread_func, args=(queue,))
+    thread.daemon = True
+    thread.start()
 
-  if not os.path.exists(PIPE_PATH):
-    os.mkfifo(PIPE_PATH)
-  # Open the fifo. We need to open in non-blocking mode or it will stalls until
-  # someone opens it for writting
-  pipe_fd = os.open(PIPE_PATH, os.O_RDONLY | os.O_NONBLOCK)
-  with os.fdopen(pipe_fd) as pipe:
-    while True:
-      message = pipe.read()
-      if message:
-        logging.debug("Sending message: %s" % message)
-        try:
-          send_message(json.dumps({"msg": json.loads(message)}))
-        except:
-          send_message(json.dumps({"bad_msg": message}))
-      time.sleep(0.5)
+    if not os.path.exists(PIPE_PATH):
+        os.mkfifo(PIPE_PATH)
+    # Open the fifo. We need to open in non-blocking mode or it will stalls
+    # until someone opens it for writting
+    pipe_fd = os.open(PIPE_PATH, os.O_RDONLY | os.O_NONBLOCK)
+    with os.fdopen(pipe_fd) as pipe:
+        logging.warning("Opening pipe; listening for messages.")
+        while True:
+            message = pipe.read()
+            if message:
+                try:
+                    logging.debug("Sending message: %s" % json.loads(message))
+                    send_message(json.dumps({"msg": json.loads(message)}))
+                except Exception:
+                    logging.debug("bad_msg: %s" % message)
+            time.sleep(0.5)
 
-  logging.warning('Exited the FIFO loop that should not exit; exiting the daemon now?!')
-  sys.exit(0)
+    logging.warning('Exited the FIFO loop that should not exit; exiting the '
+                    'daemon now?!')
+    sys.exit(0)
+
 
 if __name__ == '__main__':
-  Main()
+    Main()
 
 
-# Modified from https://chromium.googlesource.com/chromium/src/+/master/chrome/common/extensions/docs/examples/api/nativeMessaging/host/native-messaging-example-host
+# Modified from
+# https://chromium.googlesource.com/chromium/src/+/master/chrome/common/extensions/docs/examples/api/nativeMessaging/host/native-messaging-example-host
 # Original LICENSE follows:
 #
 # Copyright 2015 The Chromium Authors. All rights reserved.

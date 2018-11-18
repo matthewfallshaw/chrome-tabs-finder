@@ -1,15 +1,6 @@
 'use strict'
 
-// Extension button
-chrome.browserAction.onClicked.addListener((tab) => {
-  console.log('Clicked!')
-  let search = {
-    title: '* - matthew.fallshaw@gmail.com - Gmail',
-    url: 'https://mail.google.com/*'
-    // not_url: 'mail'
-  }
-  focusTab(search)
-})
+const NATIVE_HOST = 'com.matthewfallshaw.chrometabsfinder'
 
 // Private
 function assert (condition, message) {
@@ -19,21 +10,28 @@ function assert (condition, message) {
   }
 }
 
-function focusTab (tab) {
+function reply (reply, port) {
+  console.log(JSON.stringify(reply))
+  port.postMessage({ reply: reply })
+}
+
+function focusTab (tab, port) {
   chrome.tabs.get(tab.id, (tabInfo) => {
     chrome.windows.update(tabInfo.windowId, { focused: true }, () => {
       chrome.tabs.update(tab.id, { active: true, highlighted: true })
     })
   })
+  reply('Focused tab', port)
 };
 
-function focusWindowContainingTab (tab) {
+function focusWindowContainingTab (tab, port) {
   chrome.tabs.get(tab.id, (tabInfo) => {
     chrome.windows.update(tabInfo.windowId, { focused: true })
   })
+  reply('Focused window', port)
 };
 
-function findTab (search, callback) {
+function findTab (search, callback, port) {
   assert(search.title || search.url || search.not_title || search.not_url,
     'in findAndFocusTab, when passing a table of search parameters, I need one of `title` or `url`')
 
@@ -48,50 +46,61 @@ function findTab (search, callback) {
       let found = tabs.some((tab) => {
         if ((!search.not_title || !tab.title.match(new RegExp(search.not_title))) &&
              (!search.not_url || !tab.url.match(new RegExp(search.not_url)))) {
-          callback(tab)
+          callback(tab, port)
           return true
         } else {
           return false
         }
       })
-      if (found) {
-        return found
-      } else {
-        console.log('Nothing found.')
-        return false
+      if (!found) {
+        reply('findTab: Nothing found.', port)
       }
     })
   } catch (err) {
     console.log(err)
+    reply('Unhandled error.', port)
   }
 };
 
 // Public
-function findAndFocusTab (search) {
-  findTab(search, focusTab)
+function findAndFocusTab (search, port) {
+  findTab(search, focusTab, port)
 }
 
-function findAndFocusWindowContainingTab (search) {
-  findTab(search, focusWindowContainingTab)
+function findAndFocusWindowContainingTab (search, port) {
+  findTab(search, focusWindowContainingTab, port)
+}
+
+function getAllTabs (port) {
+  chrome.windows.getAll({ populate: true }, (windows) => {
+    reply({ windows: windows.reduce((all, one) => { return all.concat(one.tabs) }, []) }, port)
+  })
 }
 
 // Listeners
-let port = chrome.runtime.connectNative('com.matthewfallshaw.chrometabsfinder')
+let port = chrome.runtime.connectNative(NATIVE_HOST)
 port.onMessage.addListener((msg) => {
   try {
     let command = msg['msg']
     if (command['focus']) {
-      findAndFocusTab(command['focus'])
+      console.log('Focusing a tab')
+      findAndFocusTab(command['focus'], port)
     } else if (command['focusWindowContaining']) {
-      findAndFocusWindowContainingTab(command['focusWindowContaining'])
+      console.log('Focusing a window')
+      findAndFocusWindowContainingTab(command['focusWindowContaining'], port)
+    } else if (command === 'getAllTabs') {
+      console.log('getAllTabs')
+      getAllTabs(port)
+    } else {
+      reply('Unrecognised command: ' + JSON.stringify(command), port)
     }
   } catch (err) {
     console.log(err)
     try {
-      console.log('Received poorly formed: ' + JSON.stringify(msg))
+      reply('Received poorly formed: ' + JSON.stringify(msg), port)
     } catch (err) {
       console.log(err)
-      console.log('Received very poorly formed: ' + msg)
+      reply('Received very poorly formed: ' + msg, port)
     }
   }
 })

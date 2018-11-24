@@ -78,34 +78,39 @@ function getAllTabs (port) {
 }
 
 // Listeners
-let port = chrome.runtime.connectNative(NATIVE_HOST)
-port.onMessage.addListener((msg) => {
-  try {
-    let command = msg['msg']
-    if (command['focus']) {
-      console.log('Focusing a tab')
-      findAndFocusTab(command['focus'], port)
-    } else if (command['focusWindowContaining']) {
-      console.log('Focusing a window')
-      findAndFocusWindowContainingTab(command['focusWindowContaining'], port)
-    } else if (command === 'getAllTabs') {
-      console.log('getAllTabs')
-      getAllTabs(port)
-    } else {
-      reply('Unrecognised command: ' + JSON.stringify(command), port)
-    }
-  } catch (err) {
-    console.log(err)
+function connect () {
+  let port = chrome.runtime.connectNative(NATIVE_HOST)
+  port.onMessage.addListener((msg) => {
     try {
-      reply('Received poorly formed: ' + JSON.stringify(msg), port)
+      let command = msg['msg']
+      if (command['focus']) {
+        console.log('Focusing a tab')
+        findAndFocusTab(command['focus'], port)
+      } else if (command['focusWindowContaining']) {
+        console.log('Focusing a window')
+        findAndFocusWindowContainingTab(command['focusWindowContaining'], port)
+      } else if (command === 'getAllTabs') {
+        console.log('getAllTabs')
+        getAllTabs(port)
+      } else {
+        reply('Unrecognised command: ' + JSON.stringify(command), port)
+      }
     } catch (err) {
       console.log(err)
-      reply('Received very poorly formed: ' + msg, port)
+      try {
+        reply('Received poorly formed: ' + JSON.stringify(msg), port)
+      } catch (err) {
+        console.log(err)
+        reply('Received very poorly formed: ' + msg, port)
+      }
     }
-  }
-})
-port.onDisconnect.addListener(() => {
-  console.log('Disconnected')
-})
+  })
+  port.onDisconnect.addListener(() => {
+    console.log('Disconnected, reconnecting')
+    port = connect()
+  })
+  return port
+}
+connect()
 
 /* eslint-env webextensions */

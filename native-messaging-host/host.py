@@ -7,6 +7,7 @@
 
 # A simple native messaging host.
 
+import errno
 import json
 import logging
 import os
@@ -16,19 +17,38 @@ import sys
 import threading
 import time
 
-PIPE_PATH = '/tmp/chrometabsfinder.pipe'
-LOG_PATH = '/tmp/chrometabsfinder.log'
+PID = os.getpid()
+BASE_PATH = '/tmp/'
+PIPE_PATH = BASE_PATH + 'chrometabsfinder.%s.pipe' % PID
+LOG_PATH = BASE_PATH + 'chrometabsfinder.%s.log' % PID
+
 
 logging.basicConfig(filename=LOG_PATH, level=logging.DEBUG)
+logging.debug('pid: %s' % PID)
+
+
+def cleanup(f):
+    logging.debug("Cleaning up")
+    try:
+        if os.path.exists(f):
+            os.remove(f)
+    except RuntimeError as e:
+        logging.error(e)
 
 
 # Helper function that sends a message to the webapp.
-def send_message(message):
-    # Write message size.
-    sys.stdout.write(struct.pack('I', len(message)))
-    # Write the message itself.
-    sys.stdout.write(message)
-    sys.stdout.flush()
+def send_to_chrome(message):
+    try:
+        parsed_message = json.loads(message)
+        logging.debug("Sending message: {0}".format(parsed_message))
+        decorated_message = json.dumps({"msg": parsed_message})
+        # Write message size.
+        sys.stdout.write(struct.pack('I', len(decorated_message)))
+        # Write the message itself.
+        sys.stdout.write(decorated_message)
+        sys.stdout.flush()
+    except ValueError as e:
+        logging.debug("bad_msg: {0}\n{1}".format(message, e))
 
 
 # Thread that reads messages from the webapp.
@@ -41,6 +61,7 @@ def read_thread_func(queue):
             logging.warning('Read 0 bytes from stdin; connection is closed, '
                             'so exiting.')
             queue.put(None)
+            cleanup(PIPE_PATH)
             sys.exit(0)
 
         # Unpack message length as 4 byte integer.
@@ -53,7 +74,18 @@ def read_thread_func(queue):
         queue.put(text)
 
 
+def safe_read(pipe):
+    ''' reads data from a pipe and returns `None` on EAGAIN '''
+    try:
+        return pipe.read()
+    except IOError as exc:
+        if exc.errno == errno.EAGAIN:
+            return None
+        raise
+
+
 def Main():
+    logging.debug("Starting host")
     queue = Queue.Queue()
 
     thread = threading.Thread(target=read_thread_func, args=(queue,))
@@ -62,24 +94,27 @@ def Main():
 
     if not os.path.exists(PIPE_PATH):
         os.mkfifo(PIPE_PATH)
-    # Open the fifo. We need to open in non-blocking mode or it will stalls
+    # Open the fifo. We need to open in non-blocking mode or it will stall
     # until someone opens it for writting
-    pipe_fd = os.open(PIPE_PATH, os.O_RDONLY | os.O_NONBLOCK)
-    with os.fdopen(pipe_fd) as pipe:
-        logging.warning("Opening pipe; listening for messages.")
-        while True:
-            message = pipe.read()
-            if message:
-                try:
-                    logging.debug("Sending message: %s" % json.loads(message))
-                    send_message(json.dumps({"msg": json.loads(message)}))
-                except Exception:
-                    logging.debug("bad_msg: %s" % message)
-            time.sleep(0.5)
+    try:
+        pipe_fd = os.open(PIPE_PATH, os.O_RDONLY | os.O_NONBLOCK)
+        with os.fdopen(pipe_fd) as pipe:
+            logging.debug("Opening pipe; listening for messages.")
+            while True:
+                message = safe_read(pipe)
+                if message:
+                    send_to_chrome(message)
+                time.sleep(0.5)
 
-    logging.warning('Exited the FIFO loop that should not exit; exiting the '
-                    'daemon now?!')
-    sys.exit(0)
+        logging.warning('Exited the FIFO loop that should not exit; exiting '
+                        'the daemon now?!')
+        cleanup(PIPE_PATH)
+        sys.exit(0)
+    except StandardError as e:
+        logging.exception(e)
+        pass
+    finally:
+        cleanup(PIPE_PATH)
 
 
 if __name__ == '__main__':

@@ -23,6 +23,8 @@ echo -n '{"focus":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder.
 3. From your shell:
     ``` bash
     ln -s $PWD/native-messaging-host/com.matthewfallshaw.chrometabsfinder.json ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/
+    # replace ~/bin/ below with somewhere in your PATH
+    ln -s $PWD/native-messaging-host/client.py ~/bin/chrome-client
     ```
 4. From Google Chrome again (from the tab we left open earlier):
     1. Click the loopy reload button in the bottom right corner of this extension
@@ -31,6 +33,6 @@ echo -n '{"focus":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder.
 
 From your shell:
 ``` bash
-echo -n '{"focus":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder.pipe
+chrome-client '{"focus":{"url":"https://mail.google.com/*"}}'
 ```
 If you have a tab open to Gmail, it should now have focus.

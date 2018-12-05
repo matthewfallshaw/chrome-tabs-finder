@@ -8,11 +8,15 @@
     "32": "icons/32.png",
     "16": "icons/16.png"
   },
-  "permissions": ["tabs", "nativeMessaging"],
+  "permissions": ["tabs", "nativeMessaging", "storage"],
   "offline_enabled": true,
   "background": {
     "scripts": ["background_scripts/background.js"],
     "persistent": true
+  },
+  "options_ui": {
+    "page": "pages/options.html",
+    "open_in_tab": false
   },
   "manifest_version": 2
 }

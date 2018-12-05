@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head><title>Chrome Tabs Finder Options</title></head>
+  <body>
+
+    <div style="float: right"><p id="status" style="color: blue"> </p></div>
+    Profile tag:
+    <select id="profile">
+      <option value="default">default</option>
+      <option value="bellroy">bellroy</option>
+      <option value="miri">miri</option>
+    </select>
+    <p>Use this selection by including eg. <code>"profile":"default"</code> in a search. For example, using the shell client:</p>
+    <code>chrome-client '{"focus":{"url":"https://drive.google.com/*", "profile":"bellroy"}}'</code>
+
+
+    <script src="options.js"></script>
+  </body>
+</html>

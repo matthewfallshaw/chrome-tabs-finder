@@ -10,25 +10,25 @@ function assert (condition, message) {
   }
 }
 
-function reply (reply, port) {
+function reply (reply, port, profile) {
   console.log(JSON.stringify(reply))
-  port.postMessage({ reply: reply })
+  port.postMessage({ reply: profile + ':' + reply })
 }
 
-function focusTab (tab, port) {
+function focusTab (tab, port, profile) {
   chrome.tabs.get(tab.id, (tabInfo) => {
     chrome.windows.update(tabInfo.windowId, { focused: true }, () => {
       chrome.tabs.update(tab.id, { active: true, highlighted: true })
     })
   })
-  reply('Focused tab', port)
+  reply('Focused tab', port, profile)
 };
 
-function focusWindowContainingTab (tab, port) {
+function focusWindowContainingTab (tab, port, profile) {
   chrome.tabs.get(tab.id, (tabInfo) => {
     chrome.windows.update(tabInfo.windowId, { focused: true })
   })
-  reply('Focused window', port)
+  reply('Focused window', port, profile)
 };
 
 function findTab (search, callback, port) {
@@ -36,30 +36,46 @@ function findTab (search, callback, port) {
     'in findAndFocusTab, when passing a table of search parameters, I need one of `title` or `url`')
 
   // Defaults
-  let query = {}
+  const query = {}
   search.windowType = search.windowType || 'normal';
 
+  // Populate query including defaults
   ['title', 'url'].forEach((key) => search[key] && (query[key] = search[key]))
 
-  try {
-    chrome.tabs.query(query, (tabs) => {
-      let found = tabs.some((tab) => {
-        if ((!search.not_title || !tab.title.match(new RegExp(search.not_title))) &&
-             (!search.not_url || !tab.url.match(new RegExp(search.not_url)))) {
-          callback(tab, port)
-          return true
-        } else {
-          return false
+  function findTabs (search, callback, port, profile) {
+    try {
+      chrome.tabs.query(query, (tabs) => {
+        const found = tabs.some((tab) => {
+          if ((!search.not_title || !tab.title.match(new RegExp(search.not_title))) &&
+               (!search.not_url || !tab.url.match(new RegExp(search.not_url)))) {
+            callback(tab, port, profile)
+            return true
+          } else {
+            return false
+          }
+        })
+        if (!found) {
+          reply('findTab: Nothing found.', port, profile)
         }
       })
-      if (!found) {
-        reply('findTab: Nothing found.', port)
-      }
-    })
-  } catch (err) {
-    console.log(err)
-    reply('Unhandled error.', port)
+    } catch (err) {
+      console.log(err)
+      reply('findTab: Unhandled error.', port, profile)
+    }
   }
+
+  // First check profile…
+  chrome.storage.sync.get('profile', (items) => {
+    const profile = items.profile || 'default'
+    if (search.profile && (search.profile !== profile)) {
+      // … if profile doesn't match, fail
+      reply('findTab: Wrong profile - wanted:' + search.profile + '.', port, profile)
+      return false
+    } else {
+      // … if profile does match, search tabs
+      return findTabs(search, callback, port, profile)
+    }
+  })
 };
 
 // Public
@@ -77,12 +93,21 @@ function getAllTabs (port) {
   })
 }
 
+// Defaults
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.sync.get('profile', (items) => {
+    if (typeof items.profile === 'undefined') {
+      chrome.storage.sync.set({ profile: 'default' })
+    }
+  })
+})
+
 // Listeners
 function connect () {
   let port = chrome.runtime.connectNative(NATIVE_HOST)
   port.onMessage.addListener((msg) => {
     try {
-      let command = msg['msg']
+      const command = msg['msg']
       if (command['focus']) {
         console.log('Focusing a tab')
         findAndFocusTab(command['focus'], port)

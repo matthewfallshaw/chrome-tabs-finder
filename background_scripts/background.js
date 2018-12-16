@@ -11,8 +11,9 @@ function assert (condition, message) {
 }
 
 function reply (reply, port, profile) {
-  console.log(JSON.stringify(reply))
-  port.postMessage({ reply: profile + ':' + reply })
+  const replyText = JSON.stringify({ reply: reply, profile: profile })
+  console.log(replyText)
+  port.postMessage(replyText)
 }
 
 function focusTab (tab, port, profile) {

@@ -7,37 +7,106 @@
 
 import errno
 import glob
+import json
 import os
 import sys
+import time
+import threading
 
 BASE_PATH = '/tmp/'
 PIPE_PATTERN = BASE_PATH + 'chrometabsfinder.*.pipe'
+REPLY_TIMEOUT = 60  # seconds
+PIPE_READ_WAIT = 0.1
+
+
+class TimeoutError(StandardError):
+    pass
+
+
+def converse_with_host(message, pipe_name):
+    # Parse message
+    try:
+        json.loads(message)
+    except ValueError:
+        message = json.dumps(message)
+
+    # Send to host then wait for reply
+    pipe = get_pipe(pipe_name, os.O_WRONLY)
+    try:
+        send_to_host(message, pipe)
+    except OSError as e:
+        if e.errno == errno.EPIPE:
+            pass
+        else:
+            raise
+    # reply = read_from_host(pipe)
+    # pipe.close()
+
+    # Return reply to stdout
+    # sys.stdout.write(reply)
+    # sys.stdout.flush()
+
+    return
 
 
 # Helper function that sends a message to all running instances of the host.
-def send_to_hosts(message):
-    for pipe_name in glob.glob(PIPE_PATTERN):
-        try:
-            pipe = os.open(pipe_name, os.O_WRONLY | os.O_NONBLOCK)
-        except OSError as exc:
-            if exc.errno == errno.ENXIO:
-                pipe = None
-            else:
-                raise
-        if pipe is not None:
-            try:
-                os.write(pipe, message)
-            except OSError as exc:
-                if exc.errno == errno.EPIPE:
-                    pass
-                else:
-                    raise
-            os.close(pipe)
+def send_to_host(message, pipe):
+    os.write(pipe, message)
+
+
+def read_from_host(pipe):
+    while True:
+        message = pipe.read()
+        if message:
+            break
+        time.sleep(PIPE_READ_WAIT)
+    return message
+
+
+def get_pipe(pipe_name, mode):
+    return os.open(pipe_name, mode | os.O_NONBLOCK)
+
+
+def join_all(threads, timeout):
+    """
+    Args:
+        threads: a list of thread objects to join
+        timeout: the maximum time to wait for the threads to finish
+    Raises:
+        RuntimeError: if not all the threads have finished by the timeout
+    """
+    start_time = time.time()
+    while time.time() <= (start_time + timeout):
+        for thread in threads:
+            if thread.is_alive():
+                thread.join(timeout=0)
+        if all(not t.is_alive() for t in threads):
+            break
+        time.sleep(PIPE_READ_WAIT)
+    else:
+        still_running = [t for t in threads if t.is_alive()]
+        num = len(still_running)
+        names = [t.name for t in still_running]
+        raise TimeoutError('Timeout on {0} threads: {1}'.format(num, names))
 
 
 def Main():
-    # import pdb; pdb.set_trace()
-    send_to_hosts(' '.join(sys.argv[1:]))
+    message = ' '.join(sys.argv[1:])
+
+    chrome_host_threads = []
+    for pipe_name in glob.glob(PIPE_PATTERN):
+        thread = threading.Thread(target=converse_with_host,
+                                  args=(message, pipe_name))
+        thread.daemon = True
+        thread.start()
+        chrome_host_threads.append(thread)
+
+    # Timeout if any threads fail to return
+    try:
+        join_all(chrome_host_threads, REPLY_TIMEOUT)
+    except TimeoutError:
+        pass
+    sys.exit()
 
 
 if __name__ == '__main__':

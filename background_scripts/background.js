@@ -36,11 +36,16 @@ function findTab (search, callback, port) {
   assert(search.title || search.url || search.not_title || search.not_url,
     'in findAndFocusTab, when passing a table of search parameters, I need one of `title` or `url`')
 
-  // Defaults
+  // Check for unexpected search properties
+  Object.keys(search).forEach((key) => {
+    if (!['title', 'url', 'not_title', 'not_url', 'profile'].includes(key)) {
+      console.log('warning: search includes unexpected key ' + key)
+    }
+  })
+
+  // chrome.tabs.query query object from search object
   const query = {}
   search.windowType = search.windowType || 'normal';
-
-  // Populate query including defaults
   ['title', 'url'].forEach((key) => search[key] && (query[key] = search[key]))
 
   function findTabs (search, callback, port, profile) {

@@ -19,7 +19,7 @@ REPLY_TIMEOUT = 60  # seconds
 PIPE_READ_WAIT = 0.1
 
 
-class TimeoutError(StandardError):
+class TimeoutError(Exception):
     pass
 
 
@@ -33,7 +33,7 @@ def converse_with_host(message, pipe_name):
     # Send to host then wait for reply
     pipe = get_pipe(pipe_name, os.O_WRONLY)
     try:
-        send_to_host(message, pipe)
+        send_to_host(message.encode(), pipe)
     except OSError as e:
         if e.errno == errno.EPIPE:
             pass

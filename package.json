@@ -2,6 +2,7 @@
   "name": "native-messaging-host",
   "version": "0.1.0",
   "description": "Chrome Tabs Finder Messaging Host",
+  "repository": "https://github.com/matthewfallshaw/chrome-tabs-finder",
   "main": "host.js",
   "scripts": {
     "test": "mocha"

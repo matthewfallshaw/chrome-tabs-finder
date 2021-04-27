@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file [included below -- M@]
@@ -11,7 +11,7 @@ import errno
 import json
 import logging
 import os
-import Queue
+import queue
 import struct
 import sys
 import threading
@@ -43,7 +43,7 @@ def send_to_chrome(message):
         logging.debug("Sending message: {0}".format(parsed_message))
         decorated_message = json.dumps({"msg": parsed_message})
         # Write message size.
-        sys.stdout.write(struct.pack('I', len(decorated_message)))
+        sys.stdout.buffer.write(struct.pack('@I', len(decorated_message)))
         # Write the message itself.
         sys.stdout.write(decorated_message)
         sys.stdout.flush()
@@ -52,7 +52,7 @@ def send_to_chrome(message):
 
 
 # Thread that reads messages from the webapp.
-def read_thread_func(queue):
+def read_thread_func(qu):
     while True:
         # Read the message length (first 4 bytes).
         text_length_bytes = sys.stdin.read(4)
@@ -60,7 +60,7 @@ def read_thread_func(queue):
         if len(text_length_bytes) == 0:
             logging.warning('Read 0 bytes from stdin; connection is closed, '
                             'so exiting.')
-            queue.put(None)
+            qu.put(None)
             cleanup(PIPE_PATH)
             sys.exit(0)
 
@@ -71,7 +71,7 @@ def read_thread_func(queue):
         text = sys.stdin.read(text_length).decode('utf-8')
         logging.debug("Read message: %s" % text)
 
-        queue.put(text)
+        qu.put(text)
 
 
 def safe_read(pipe):
@@ -86,9 +86,9 @@ def safe_read(pipe):
 
 def Main():
     logging.debug("Starting host")
-    queue = Queue.Queue()
+    qu = queue.Queue()
 
-    thread = threading.Thread(target=read_thread_func, args=(queue,))
+    thread = threading.Thread(target=read_thread_func, args=(qu,))
     thread.daemon = True
     thread.start()
 
@@ -110,7 +110,7 @@ def Main():
                         'the daemon now?!')
         cleanup(PIPE_PATH)
         sys.exit(0)
-    except StandardError as e:
+    except Exception as e:
         logging.exception(e)
         pass
     finally:
@@ -118,7 +118,11 @@ def Main():
 
 
 if __name__ == '__main__':
-    Main()
+    try:
+        Main()
+    except Exception as e:
+        logging.error(e)
+        raise
 
 
 # Modified from

@@ -29,6 +29,10 @@ echo -n '{"focus":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder.
 4. From Google Chrome again (from the tab we left open earlier):
     1. Click the loopy reload button in the bottom right corner of this extension
 
+5. From Google Chrome, for each Profile, separately:
+    1. Navigate to the "Options" dialog for this extension ("puzzzle" button > Chrome Tabs Finder > ⠇ > Options)
+    2. Set the profile name you want to use to select this profile
+
 ## Use
 
 From your shell:

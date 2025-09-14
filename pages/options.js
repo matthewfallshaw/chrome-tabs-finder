@@ -9,20 +9,18 @@ function reportStatus (message) {
 }
 
 // Saves options to chrome.storage
-function saveOptions () {
+async function saveOptions () {
   const selectedProfile = document.getElementById('profile').value
-  chrome.storage.sync.set({ profile: selectedProfile }, function () {
-    reportStatus('Options saved.');
-  });
+  await chrome.storage.sync.set({ profile: selectedProfile })
+  reportStatus('Options saved.');
 }
 
 // Restores select box and checkbox state using the preferences
 // stored in chrome.storage.
-function restoreOptions () {
+async function restoreOptions () {
   // Use default value profile = 'default'.
-  chrome.storage.sync.get('profile', function (items) {
-    document.getElementById('profile').value = items.profile;
-  });
+  const items = await chrome.storage.sync.get('profile')
+  document.getElementById('profile').value = items.profile || 'default';
 }
 
 document.addEventListener('DOMContentLoaded', restoreOptions);

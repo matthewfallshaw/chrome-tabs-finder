@@ -12,6 +12,7 @@ import os
 import sys
 import time
 import threading
+from typing import List
 
 BASE_PATH = '/tmp/'
 PIPE_PATTERN = BASE_PATH + 'chrometabsfinder.*.pipe'
@@ -23,7 +24,7 @@ class TimeoutError(Exception):
     pass
 
 
-def converse_with_host(message, pipe_name):
+def converse_with_host(message: str, pipe_name: str) -> None:
     # Parse message
     try:
         json.loads(message)
@@ -50,24 +51,24 @@ def converse_with_host(message, pipe_name):
 
 
 # Helper function that sends a message to all running instances of the host.
-def send_to_host(message, pipe):
+def send_to_host(message: bytes, pipe: int) -> None:
     os.write(pipe, message)
 
 
-def read_from_host(pipe):
+def read_from_host(pipe: int) -> str:
     while True:
-        message = pipe.read()
+        message = os.read(pipe, 1024)
         if message:
             break
         time.sleep(PIPE_READ_WAIT)
-    return message
+    return message.decode()
 
 
-def get_pipe(pipe_name, mode):
+def get_pipe(pipe_name: str, mode: int) -> int:
     return os.open(pipe_name, mode | os.O_NONBLOCK)
 
 
-def join_all(threads, timeout):
+def join_all(threads: List[threading.Thread], timeout: int) -> None:
     """
     Args:
         threads: a list of thread objects to join
@@ -90,8 +91,54 @@ def join_all(threads, timeout):
         raise TimeoutError('Timeout on {0} threads: {1}'.format(num, names))
 
 
+def show_help():
+    help_text = """chrome-client - Control Chrome tabs from the command line
+
+USAGE:
+    chrome-client '{"focus": {"url": "pattern", "title": "pattern", "profile": "name"}}'
+    chrome-client '{"focusWindowContaining": {"url": "pattern", "title": "pattern", "profile": "name"}}'
+    chrome-client '"getAllTabs"'
+    chrome-client '"help"'
+
+COMMANDS:
+    focus                    Focus a tab matching the criteria
+    focusWindowContaining    Focus the window containing a tab matching the criteria
+    getAllTabs              Get information about all open tabs
+    help                    Show available commands from the extension
+
+SEARCH CRITERIA:
+    url       URL pattern (wildcards supported: *gmail.com*, https://example.com/*)
+    title     Title pattern (wildcards supported: *Google Drive*, My Document*)  
+    profile   Chrome profile name (must match name set in extension options)
+
+EXAMPLES:
+    # Focus Gmail tab in any profile
+    chrome-client '{"focus": {"url": "*gmail.com*"}}'
+    
+    # Focus Google Drive tab in specific profile  
+    chrome-client '{"focus": {"url": "*drive.google.com*", "profile": "work"}}'
+    
+    # Focus window containing a specific document
+    chrome-client '{"focusWindowContaining": {"title": "*My Document*"}}'
+    
+    # Get all tabs
+    chrome-client '"getAllTabs"'
+
+SETUP:
+    1. Install Chrome extension and configure profile names in extension options
+    2. Make sure native messaging host is running (loads automatically with extension)
+    3. Ensure this script is in your PATH as 'chrome-client'
+"""
+    print(help_text)
+
 def Main():
-    message = ' '.join(sys.argv[1:])
+    args = sys.argv[1:]
+    
+    if not args or args[0] in ['-h', '--help']:
+        show_help()
+        sys.exit(0)
+    
+    message = ' '.join(args)
 
     chrome_host_threads = []
     for pipe_name in glob.glob(PIPE_PATTERN):

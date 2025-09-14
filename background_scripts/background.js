@@ -71,7 +71,7 @@ function findTab (search, callback, port) {
   }
 
   // First check profile…
-  chrome.storage.sync.get('profile', (items) => {
+  chrome.storage.sync.get('profile').then((items) => {
     const profile = items.profile || 'default'
     if (search.profile && (search.profile !== profile)) {
       // … if profile doesn't match, fail
@@ -100,48 +100,80 @@ function getAllTabs (port) {
 }
 
 // Defaults
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.sync.get('profile', (items) => {
-    if (typeof items.profile === 'undefined') {
-      chrome.storage.sync.set({ profile: 'default' })
-    }
-  })
+chrome.runtime.onInstalled.addListener(async () => {
+  const items = await chrome.storage.sync.get('profile')
+  if (typeof items.profile === 'undefined') {
+    await chrome.storage.sync.set({ profile: 'default' })
+  }
 })
+
+function help (port) {
+  reply(JSON.stringify([
+    { "focus": { "title": "?", "url": "?" } },
+    { "focusWindowContaining": { "title": "?", "url": "?" } },
+    "getAllTabs",
+    "help",
+  ]), port, '??')
+}
+
+// Global port reference for service worker
+let nativePort = null
 
 // Listeners
 function connect () {
-  let port = chrome.runtime.connectNative(NATIVE_HOST)
-  port.onMessage.addListener((msg) => {
+  if (nativePort) {
+    nativePort.disconnect()
+  }
+  
+  nativePort = chrome.runtime.connectNative(NATIVE_HOST)
+  
+  nativePort.onMessage.addListener((msg) => {
     try {
       const command = msg['msg']
       if (command['focus']) {
         console.log('Focusing a tab')
-        findAndFocusTab(command['focus'], port)
+        findAndFocusTab(command['focus'], nativePort)
       } else if (command['focusWindowContaining']) {
         console.log('Focusing a window')
-        findAndFocusWindowContainingTab(command['focusWindowContaining'], port)
+        findAndFocusWindowContainingTab(command['focusWindowContaining'], nativePort)
       } else if (command === 'getAllTabs') {
         console.log('getAllTabs')
-        getAllTabs(port)
+        getAllTabs(nativePort)
+      } else if (command === 'help') {
+        console.log('help')
+        help(nativePort)
       } else {
-        reply('Unrecognised command: ' + JSON.stringify(command), port)
+        reply('Unrecognised command: ' + JSON.stringify(command), nativePort)
       }
     } catch (err) {
       console.log(err)
       try {
-        reply('Received poorly formed: ' + JSON.stringify(msg), port)
+        reply('Received poorly formed: ' + JSON.stringify(msg), nativePort)
       } catch (err) {
         console.log(err)
-        reply('Received very poorly formed: ' + msg, port)
+        reply('Received very poorly formed: ' + msg, nativePort)
       }
     }
   })
-  port.onDisconnect.addListener(() => {
-    console.log('Disconnected, reconnecting')
-    port = connect()
+  
+  nativePort.onDisconnect.addListener(() => {
+    console.log('Native host disconnected')
+    nativePort = null
+    // Don't auto-reconnect immediately to avoid loops
+    // Connection will be re-established when service worker receives next message
   })
-  return port
+  
+  return nativePort
 }
-connect()
+
+// Ensure connection on startup and when service worker wakes up
+chrome.runtime.onStartup.addListener(() => {
+  connect()
+})
+
+// Connect immediately if not already connected
+if (!nativePort) {
+  connect()
+}
 
 /* eslint-env webextensions */

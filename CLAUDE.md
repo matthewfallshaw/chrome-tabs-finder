@@ -31,10 +31,10 @@ Chrome Tabs Finder is a Chrome extension that allows command-line control of Chr
 
 ```bash
 # Linting
-npx eslint background_scripts/background.js
+npm run lint
 
-# Testing (basic structure exists)
-npm test
+# Type checking (Python)
+mypy .
 ```
 
 ## Key APIs and Commands

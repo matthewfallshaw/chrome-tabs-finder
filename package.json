@@ -4,13 +4,14 @@
   "description": "Chrome Tabs Finder Messaging Host",
   "repository": "https://github.com/matthewfallshaw/chrome-tabs-finder",
   "main": "host.js",
+  "type": "module",
   "scripts": {
-    "test": "mocha"
+    "lint": "eslint background_scripts/background.js pages/options.js"
   },
   "author": "Matthew Fallshaw",
   "license": "MIT",
   "devDependencies": {
-    "eslint": "^5.16.0",
+    "eslint": "^9.35.0",
     "eslint-config-google": "^0.11.0"
   }
 }

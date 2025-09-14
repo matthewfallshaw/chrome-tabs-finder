@@ -4,7 +4,11 @@
       "Read(//private/tmp/**)",
       "Bash(cat:*)",
       "Bash(mypy:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(npm outdated)",
+      "Bash(npm audit:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []

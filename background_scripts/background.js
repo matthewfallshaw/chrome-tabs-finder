@@ -52,8 +52,10 @@ function findTab (search, callback, port) {
     try {
       chrome.tabs.query(query, (tabs) => {
         const found = tabs.some((tab) => {
-          if ((!search.not_title || !tab.title.match(new RegExp(search.not_title))) &&
-               (!search.not_url || !tab.url.match(new RegExp(search.not_url)))) {
+          if ((!search.not_title ||
+               !tab.title.match(new RegExp(search.not_title))) &&
+               (!search.not_url ||
+               !tab.url.match(new RegExp(search.not_url)))) {
             callback(tab, port, profile)
             return true
           } else {
@@ -95,7 +97,10 @@ function findAndFocusWindowContainingTab (search, port) {
 
 function getAllTabs (port) {
   chrome.windows.getAll({ populate: true }, (windows) => {
-    reply({ windows: windows.reduce((all, one) => { return all.concat(one.tabs) }, []) }, port)
+    const allTabs = windows.reduce((all, one) => {
+      return all.concat(one.tabs)
+    }, [])
+    reply({ windows: allTabs }, port)
   })
 }
 
@@ -109,10 +114,10 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 function help (port) {
   reply(JSON.stringify([
-    { "focus": { "title": "?", "url": "?" } },
-    { "focusWindowContaining": { "title": "?", "url": "?" } },
-    "getAllTabs",
-    "help",
+    { 'focus': { 'title': '?', 'url': '?' } },
+    { 'focusWindowContaining': { 'title': '?', 'url': '?' } },
+    'getAllTabs',
+    'help',
   ]), port, '??')
 }
 
@@ -124,9 +129,9 @@ function connect () {
   if (nativePort) {
     nativePort.disconnect()
   }
-  
+
   nativePort = chrome.runtime.connectNative(NATIVE_HOST)
-  
+
   nativePort.onMessage.addListener((msg) => {
     try {
       const command = msg['msg']
@@ -155,14 +160,15 @@ function connect () {
       }
     }
   })
-  
+
   nativePort.onDisconnect.addListener(() => {
     console.log('Native host disconnected')
     nativePort = null
     // Don't auto-reconnect immediately to avoid loops
-    // Connection will be re-established when service worker receives next message
+    // Connection will be re-established when service worker receives next
+    // message
   })
-  
+
   return nativePort
 }
 

@@ -92,42 +92,44 @@ def join_all(threads: List[threading.Thread], timeout: int) -> None:
 
 
 def show_help():
-    help_text = """chrome-client - Control Chrome tabs from the command line
+    help_text = """chrome-client - Find and focus Chrome tabs and windows from the command line
 
 USAGE:
-    chrome-client '{"focus": {"url": "pattern", "title": "pattern", "profile": "name"}}'
-    chrome-client '{"focusWindowContaining": {"url": "pattern", "title": "pattern", "profile": "name"}}'
+    chrome-client '{"focus": {<search>}}'
+    chrome-client '{"focusWindowContaining": {<search>}}'
     chrome-client '"getAllTabs"'
     chrome-client '"help"'
 
 COMMANDS:
     focus                    Focus a tab matching the criteria
-    focusWindowContaining    Focus the window containing a tab matching the criteria
-    getAllTabs              Get information about all open tabs
-    help                    Show available commands from the extension
+    focusWindowContaining    Focus the window containing a matching tab
+    getAllTabs               Get information about all open tabs
+    help                     Show available commands from the extension
 
 SEARCH CRITERIA:
-    url       URL pattern (wildcards supported: *gmail.com*, https://example.com/*)
-    title     Title pattern (wildcards supported: *Google Drive*, My Document*)  
-    profile   Chrome profile name (must match name set in extension options)
+    url         URL pattern, glob-style (* wildcards)
+    title       Title pattern, glob-style (* wildcards)
+    not_url     Exclude tabs by URL (JavaScript regex)
+    not_title   Exclude tabs by title (JavaScript regex)
+    profile     Chrome profile name (must match name set in extension options)
+
+    At least one of url, title, not_url, or not_title is required.
 
 EXAMPLES:
-    # Focus Gmail tab in any profile
-    chrome-client '{"focus": {"url": "*gmail.com*"}}'
-    
-    # Focus Google Drive tab in specific profile  
+    # Focus Gmail tab
+    chrome-client '{"focus": {"url": "*mail.google.com*"}}'
+
+    # Focus Google Drive in a specific profile
     chrome-client '{"focus": {"url": "*drive.google.com*", "profile": "work"}}'
-    
-    # Focus window containing a specific document
-    chrome-client '{"focusWindowContaining": {"title": "*My Document*"}}'
-    
-    # Get all tabs
+
+    # Focus window containing a doc, excluding the homepage
+    chrome-client '{"focusWindowContaining": {"url": "*docs.google.com*", "not_url": "/document/d/$"}}'
+
+    # List all tabs
     chrome-client '"getAllTabs"'
 
 SETUP:
-    1. Install Chrome extension and configure profile names in extension options
-    2. Make sure native messaging host is running (loads automatically with extension)
-    3. Ensure this script is in your PATH as 'chrome-client'
+    See https://github.com/matthewfallshaw/chrome-tabs-finder#installation
 """
     print(help_text)
 

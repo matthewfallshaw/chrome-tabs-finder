@@ -1,10 +1,60 @@
 # chrome-tabs-finder
 
-Control Chrome from the command line.
-Send commands by echoing to `tmp/chrometabsfinder.pipe`:
+Find and focus Chrome tabs and windows from the command line. Supports multiple Chrome profiles.
+
 ``` bash
-echo -n '{"focus":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder.pipe
+# Focus a tab by URL
+chrome-client '{"focus": {"url": "*mail.google.com*"}}'
+
+# Focus the window containing a tab, by title and profile
+chrome-client '{"focusWindowContaining": {"title": "*Google Drive*", "profile": "work"}}'
 ```
+
+## Commands
+
+### `focus` — Focus a matching tab
+
+``` bash
+chrome-client '{"focus": {"url": "pattern", "title": "pattern"}}'
+```
+
+Finds the first tab matching the criteria, focuses it, and brings its window to the front.
+
+### `focusWindowContaining` — Focus the window containing a matching tab
+
+``` bash
+chrome-client '{"focusWindowContaining": {"url": "pattern", "title": "pattern"}}'
+```
+
+Like `focus`, but brings the window to the front without switching to the matched tab.
+
+### `getAllTabs` — List all open tabs
+
+``` bash
+chrome-client '"getAllTabs"'
+```
+
+### `help` — Show available commands
+
+``` bash
+chrome-client '"help"'
+```
+
+## Search criteria
+
+Both `focus` and `focusWindowContaining` accept these search parameters:
+
+| Parameter   | Description | Pattern type |
+|-------------|-------------|--------------|
+| `url`       | Match tab URL | Glob (`*` wildcards) |
+| `title`     | Match tab title | Glob (`*` wildcards) |
+| `not_url`   | Exclude tabs by URL | JavaScript regex |
+| `not_title` | Exclude tabs by title | JavaScript regex |
+| `profile`   | Only match in this Chrome profile | Exact match |
+
+At least one of `url`, `title`, `not_url`, or `not_title` is required.
+
+`profile` must match the name configured in the extension's options page for that Chrome profile (see installation step 5).
 
 ## Installation
 
@@ -30,13 +80,5 @@ echo -n '{"focus":{"url":"https://mail.google.com/*"}}' > /tmp/chrometabsfinder.
     1. Click the loopy reload button in the bottom right corner of this extension
 
 5. From Google Chrome, for each Profile, separately:
-    1. Navigate to the "Options" dialog for this extension ("puzzzle" button > Chrome Tabs Finder > ⠇ > Options)
+    1. Navigate to the "Options" dialog for this extension ("puzzle" button > Chrome Tabs Finder > ⠇ > Options)
     2. Set the profile name you want to use to select this profile
-
-## Use
-
-From your shell:
-``` bash
-chrome-client '{"focus":{"url":"https://mail.google.com/*"}}'
-```
-If you have a tab open to Gmail, it should now have focus.
